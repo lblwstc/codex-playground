@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Codex Playground</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .tabs { display: flex; }
+    .tab { padding: 10px 20px; cursor: pointer; border: 1px solid #ccc; border-bottom: none; }
+    .tab.active { background-color: #f0f0f0; }
+    .tab-content { border: 1px solid #ccc; padding: 20px; }
+    .tab-content > div { display: none; }
+    .tab-content > div.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="tabs">
+    <div class="tab active" data-target="home">Home</div>
+    <div class="tab" data-target="profile">My Profile</div>
+  </div>
+  <div class="tab-content">
+    <div id="home" class="active">
+      <h2>Welcome to the Codex Playground</h2>
+      <p>This is the home tab.</p>
+    </div>
+    <div id="profile">
+      <h2>My Profile</h2>
+      <p>Profile details go here.</p>
+    </div>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.tab-content > div');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        contents.forEach(c => c.classList.remove('active'));
+
+        tab.classList.add('active');
+        const target = document.getElementById(tab.dataset.target);
+        target.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
