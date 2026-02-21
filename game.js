@@ -1,4 +1,4 @@
-import { createInitialState } from "./modules/state.js";
+import { createInitialState, normalizeState } from "./modules/state.js";
 import { tick } from "./modules/sim.js";
 import { render, hitTest } from "./modules/render.js";
 import { bindUI, drawPanels, drawTopBar } from "./modules/ui.js";
@@ -14,8 +14,10 @@ const refs = {
   mobileSheet: document.getElementById("mobileSheet"),
 };
 
-const state = loadGame() || createInitialState();
-if (loadGame()) applyOfflineProgress(state);
+const saved = loadGame();
+const state = saved || createInitialState();
+normalizeState(state);
+if (saved) applyOfflineProgress(state);
 window.resetSave = () => { resetSave(); location.reload(); };
 
 bindUI(state, refs);
