@@ -23,3 +23,6 @@ A no-build 2D planet resource-gathering game built with Canvas 2D and ES modules
 - Fixed-step simulation (10 ticks/s) + smooth render loop.
 - Save/load in `localStorage`, offline progress capped to 8 hours.
 - Reset save from DevTools: `resetSave()`.
+
+## Design notes
+- Visual effects upgrade proposal: `docs/visual-upgrade-proposal.md`.
