@@ -1,57 +1,52 @@
-import { planets, storageCap } from "./balance.js";
-import { generatePlanetMap } from "./mapgen.js";
+import { PLANET_TEMPLATES, RESOURCES } from "./content.js";
 
-export const SAVE_VERSION = 1;
+/** @typedef {{x:number,y:number}} Vec2 */
 
-function planetTemplate(planet) {
+/** @returns {import('./types').GameState|any} */
+export function createInitialState() {
+  const now = Date.now();
+  const planets = PLANET_TEMPLATES.map((tpl, i) => ({
+    id: `planet-${i}`,
+    name: `${tpl.type[0].toUpperCase()}${tpl.type.slice(1)}-${i + 1}`,
+    ...tpl,
+    distance: 160 + i * 90,
+    angle: (Math.PI * 2 * i) / PLANET_TEMPLATES.length,
+    unlocked: i === 0,
+    unlockCost: { ore: 35 + i * 50, water: i * 20, bio: i * 15, energy: i * 10 },
+    extractorLevel: 1,
+    extractorSlots: 1 + Math.floor(i / 2),
+    buffer: Object.fromEntries(Object.keys(RESOURCES).map(r => [r, 0])),
+  }));
+
   return {
-    unlocked: planet.id === "terra",
-    seed: `${planet.id}-001`,
-    map: generatePlanetMap(planet.id, `${planet.id}-001`),
-    buildings: {
-      extractors: [],
-      power: { placed: false, x: -1, y: -1, level: 0 },
-      lab: { placed: false, x: -1, y: -1, level: 0 },
-      storage: { placed: false, x: -1, y: -1, level: 0 },
-    },
+    version: 1,
+    time: now,
+    lastSaveAt: now,
+    resources: { ore: 80, water: 40, bio: 20, energy: 20 },
+    rates: { ore: 0, water: 0, bio: 0, energy: 0 },
+    storageCap: { ore: 500, water: 500, bio: 500, energy: 500 },
+    mothership: { x: 0, y: 0 },
+    planets,
+    ships: [makeShip(0)],
+    nextShipId: 1,
+    selected: { kind: "mothership", id: "mothership" },
+    modifiers: { shipSpeed: 1, shipCapacity: 0, dockTime: 1, extractorOutput: 1, routeAI: false, refining: 0 },
+    unlockedUpgrades: [],
+    camera: { x: 0, y: 0, zoom: 1 },
+    fx: { floaters: [], twinkleSeed: Math.random() * 9999 },
+    mobileTab: "actions",
   };
 }
 
-export function createNewState() {
-  const state = {
-    version: SAVE_VERSION,
-    lastSeen: Date.now(),
-    activePlanetId: "terra",
-    resources: { minerals: 500, energy: 0, biomass: 0, rareGas: 0 },
-    caps: { minerals: storageCap(0), energy: storageCap(0), biomass: storageCap(0), rareGas: storageCap(0) },
-    tech: { extraction: 0, energyOpt: 0, logistics: 0, automation: 0 },
-    settings: {
-      reducedMotion: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false,
-    },
-    ui: {
-      currentTab: "planet",
-      placeMode: null,
-      ghostTile: null,
-      selectedTile: null,
-      message: "Welcome Commander",
-      invalidPulseUntil: 0,
-      resourcePulse: 0,
-    },
-    metrics: {
-      terraProd: 0,
-      totalProdByRes: { minerals: 0, energy: 0, biomass: 0, rareGas: 0 },
-    },
-    planets: {},
-    camera: {
-      x: 0,
-      y: 0,
-      zoom: 1,
-    },
+export function makeShip(idx) {
+  return {
+    id: `ship-${idx}`,
+    planetId: "planet-0",
+    state: "TRAVEL_TO_PLANET",
+    progress: 0,
+    dockTimer: 0,
+    cargo: { ore: 0, water: 0, bio: 0, energy: 0 },
+    capacity: 20,
+    speed: 80,
   };
-
-  for (const planet of planets) {
-    state.planets[planet.id] = planetTemplate(planet);
-  }
-
-  return state;
 }

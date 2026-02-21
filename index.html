@@ -2,74 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Planetary Dominion</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Star Hauler Command</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="app">
-    <div id="canvasWrap"><canvas id="gameCanvas"></canvas></div>
-    <div id="overlay">
-      <div id="resourceBar"></div>
-      <section id="panel"></section>
-      <nav id="tabs">
-        <button data-tab="planet" class="active">Planet</button>
-        <button data-tab="build">Build</button>
-        <button data-tab="tech">Tech</button>
-        <button data-tab="settings">Settings</button>
-      </nav>
-    </div>
+    <header id="topBar"></header>
+
+    <main id="gameLayout">
+      <aside id="leftPanel" class="panel"></aside>
+      <section id="canvasWrap">
+        <canvas id="gameCanvas" width="1280" height="720" aria-label="Star map"></canvas>
+      </section>
+      <aside id="rightPanel" class="panel"></aside>
+    </main>
+
+    <nav id="mobileTabs">
+      <button data-tab="actions" class="tabBtn active">Actions</button>
+      <button data-tab="details" class="tabBtn">Details</button>
+      <button data-tab="tech">Tech</button>
+    </nav>
+    <section id="mobileSheet" class="panel"></section>
   </div>
 
-  <script type="module">
-    import { loadGame, saveGame } from "./modules/save.js";
-    import { applyOfflineProgress, tick, recalcCaps } from "./modules/sim.js";
-    import { Renderer } from "./modules/renderer.js";
-    import { attachInput } from "./modules/input.js";
-    import { setupUI } from "./modules/ui.js";
-
-    const state = loadGame();
-    applyOfflineProgress(state);
-    recalcCaps(state);
-
-    if (state.settings.reducedMotion) document.body.classList.add("reduce-motion");
-
-    const canvas = document.getElementById("gameCanvas");
-    const renderer = new Renderer(canvas, state);
-    const ui = setupUI(state, onStateChanged);
-
-    function onStateChanged() {
-      recalcCaps(state);
-      ui.render();
-    }
-
-    attachInput(canvas, state, renderer, onStateChanged);
-    window.addEventListener("resize", () => renderer.resize());
-    ui.render();
-
-    let acc = 0;
-    let last = performance.now();
-    function frame(now) {
-      const dt = (now - last) / 1000;
-      last = now;
-      acc += dt;
-      const fixed = 0.2;
-      while (acc >= fixed) {
-        tick(state, fixed);
-        acc -= fixed;
-      }
-      renderer.draw();
-      if (!state.settings.reducedMotion || now % 200 < 16) ui.render();
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-
-    setInterval(() => saveGame(state), 10000);
-    const saveNow = () => saveGame(state);
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) saveNow();
-    });
-    window.addEventListener("pagehide", saveNow);
-  </script>
+  <script type="module" src="game.js"></script>
 </body>
 </html>

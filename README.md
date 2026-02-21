@@ -1,50 +1,25 @@
-# Planetary Dominion
+# Star Hauler Command
 
-Mobile-first 2D tile-map colony/resource game built with vanilla HTML/CSS/JS modules.
+A no-build 2D planet resource-gathering game built with Canvas 2D and ES modules.
 
-## Run locally
-
-```bash
-python3 -m http.server 8000
-```
-
-Then open: `http://localhost:8000`
-
-## Controls
-
-- **Touch**: one-finger pan, two-finger pinch zoom, tap to place in placement mode.
-- **Desktop**: mouse drag pan, wheel zoom, WASD/arrow pan.
+## Run
+1. Open `index.html` directly in desktop Chrome or iPhone Safari.
+2. Optional: serve locally for cleaner module loading behavior (`python3 -m http.server`).
 
 ## Gameplay loop
+- Planets continuously produce resources into local buffers.
+- Ships cycle through: `TRAVEL_TO_PLANET -> LOADING -> TRAVEL_TO_MOTHERSHIP -> UNLOADING`.
+- Spend resources to unlock planets, buy ships, upgrade extractors, and research tech.
 
-1. Start on **Terra Nova**.
-2. Place extractors on resource nodes, and support buildings on empty tiles.
-3. Upgrade buildings (L1-L10).
-4. Buy tech ranks in Tech tab.
-5. Unlock additional planets via Planet tab milestones.
+## Controls
+- **Desktop**: drag to pan, mouse wheel to zoom, click ships/planets to inspect.
+- **Mobile**: drag to pan, pinch to zoom, tap to select; bottom tabs switch Actions/Details/Tech.
 
-## Features implemented
-
-- 4 deterministic planets with unique resource nodes and palettes.
-- Building placement rules and per-planet constraints.
-- Formula-driven economy (cost growth, production scaling, storage caps).
-- Offline progress (capped at 12 hours).
-- Autosave every 10s + visibility/pagehide save.
-- Save export/import/reset.
-- iPhone-safe layout with viewport-fit, safe-area insets, and 44px touch targets.
-- Canvas map rendering + DOM overlay UI.
-- Reduced motion toggle + prefers-reduced-motion default.
-
-## Quick test checklist
-
-1. Place extractor on node (works) and empty tile (rejected).
-2. Place power/lab/storage on empty tile only; only one each per planet.
-3. Upgrade and verify production and caps rise.
-4. Buy tech and verify costs scale and production improves.
-5. Unlock Ignis/Aqua/Zephyria via requirements.
-6. Refresh page and confirm save/load.
-7. Modify `lastSeen` in localStorage to verify offline progress.
-
-## Deploy
-
-Deploy as static files (GitHub Pages, Netlify static, Vercel static). No build step required.
+## Features
+- 4 resources: Ore, Water, Bio, Energy.
+- Distinct planet types with richness/distance differences.
+- Curved ship paths + thruster trail + cargo indicator + floating unload text.
+- 9 tech upgrades with prerequisites and immediate effects.
+- Fixed-step simulation (10 ticks/s) + smooth render loop.
+- Save/load in `localStorage`, offline progress capped to 8 hours.
+- Reset save from DevTools: `resetSave()`.
