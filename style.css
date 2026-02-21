@@ -1,0 +1,90 @@
+:root {
+  --bg: #090d19;
+  --panel: rgba(16, 22, 40, 0.9);
+  --panel-border: rgba(255, 255, 255, 0.15);
+  --text: #e8f1ff;
+  --muted: #95a7c8;
+  --accent: #64d5ff;
+  --ok: #6df5a5;
+  --warn: #ffba66;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { overflow: hidden; }
+
+#app { display: grid; grid-template-rows: auto 1fr; }
+#topBar {
+  min-height: 56px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(19, 29, 54, 0.95), rgba(10, 15, 30, 0.9));
+  border-bottom: 1px solid var(--panel-border);
+}
+.resourceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.resourceDot { width: 10px; height: 10px; border-radius: 50%; }
+
+#gameLayout { display: grid; grid-template-columns: 280px 1fr 320px; min-height: 0; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px;
+  overflow: auto;
+}
+#leftPanel, #rightPanel { margin: 10px; }
+#canvasWrap { margin: 10px 0; position: relative; border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); }
+#gameCanvas { width: 100%; height: 100%; display: block; touch-action: none; background: radial-gradient(circle at center, #111b35 0%, #060a14 60%); }
+
+h2, h3 { margin: 8px 0; }
+.card { border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+button {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(90, 130, 200, 0.2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 6px;
+  font-weight: 600;
+  min-height: 44px;
+}
+button:disabled { opacity: .5; }
+button:not(:disabled):active { transform: translateY(1px); }
+.meta { color: var(--muted); font-size: 12px; }
+.good { color: var(--ok); }
+
+#mobileTabs, #mobileSheet { display: none; }
+
+@media (max-width: 900px) {
+  #gameLayout { grid-template-columns: 1fr; }
+  #leftPanel, #rightPanel { display: none; }
+  #canvasWrap { margin: 0; }
+  #mobileTabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(8,12,24,.95);
+    border-top: 1px solid var(--panel-border);
+  }
+  .tabBtn.active { outline: 2px solid var(--accent); }
+  #mobileSheet {
+    display: block;
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    max-height: 40vh;
+  }
+}

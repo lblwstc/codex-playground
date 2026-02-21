@@ -1,173 +1,126 @@
-import {
-  planets,
-  techDiscount,
-  techMultipliers,
-  powerBonus,
-  storageCap,
-  extractorRate,
-  extractorBuildCost,
-  extractorUpgradeCost,
-  powerUpgradeCost,
-  labUpgradeCost,
-  storageUpgradeCost,
-  techCost,
-  canUnlockPlanet,
-  payUnlockCost,
-  clampResourceToCap,
-} from "./balance.js";
-import { tileIndex } from "./mapgen.js";
-import { RES_KEYS } from "./utils.js";
+import { RESOURCES, UPGRADES } from "./content.js";
+import { makeShip } from "./state.js";
 
-export function getPlanet(state, planetId = state.activePlanetId) {
-  return planets.find((p) => p.id === planetId);
+const TICK_DT = 0.1;
+
+export function tick(state) {
+  state.rates = { ore: 0, water: 0, bio: 0, energy: 0 };
+  producePlanets(state, TICK_DT);
+  if (state.modifiers.routeAI) autoAssignRoutes(state);
+  for (const ship of state.ships) stepShip(state, ship, TICK_DT);
+  stepFx(state, TICK_DT);
+  state.time += TICK_DT * 1000;
 }
 
-export function recalcCaps(state) {
-  const base = { minerals: 1000, energy: 1000, biomass: 1000, rareGas: 1000 };
-  for (const planet of planets) {
-    const pState = state.planets[planet.id];
-    base[planet.resource] = storageCap(pState.buildings.storage.level);
+function producePlanets(state, dt) {
+  for (const p of state.planets) {
+    if (!p.unlocked) continue;
+    const base = 0.9 * p.richness * p.extractorLevel * p.extractorSlots * state.modifiers.extractorOutput;
+    p.buffer[p.primaryResource] += base * dt;
+    state.rates[p.primaryResource] += base;
   }
-  state.caps = base;
-  clampResourceToCap(state);
 }
 
-export function getResourcePerSecond(state) {
-  const rates = { minerals: 0, energy: 0, biomass: 0, rareGas: 0 };
-  const techMults = techMultipliers(state.tech);
+function stepShip(state, ship, dt) {
+  const p = state.planets.find(x => x.id === ship.planetId && x.unlocked) || state.planets.find(x => x.unlocked);
+  if (!p) return;
+  const travelTime = p.distance / (ship.speed * state.modifiers.shipSpeed);
+  const dockDuration = 2 * state.modifiers.dockTime;
 
-  for (const planet of planets) {
-    const pState = state.planets[planet.id];
-    if (!pState.unlocked) continue;
-
-    const powerLvl = pState.buildings.power.level;
-    const powerMult = 1 + powerBonus(powerLvl, techMults.energy);
-
-    for (const ext of pState.buildings.extractors) {
-      const tile = pState.map.tiles[tileIndex(ext.x, ext.y)];
-      if (!tile || tile.type !== "node") continue;
-      rates[planet.resource] += extractorRate({
-        planet,
-        richness: tile.richness,
-        level: ext.level,
-        powerMult,
-        extractionTechMult: techMults.extraction,
-        automationMult: techMults.automation,
-      });
+  if (ship.state.startsWith("TRAVEL")) {
+    ship.progress = Math.min(1, ship.progress + dt / travelTime);
+    if (ship.progress >= 1) {
+      ship.progress = 0;
+      ship.state = ship.state === "TRAVEL_TO_PLANET" ? "LOADING" : "UNLOADING";
+      ship.dockTimer = dockDuration;
     }
+    return;
   }
 
-  state.metrics.terraProd = rates.minerals;
-  state.metrics.totalProdByRes = rates;
-  return rates;
-}
+  ship.dockTimer -= dt;
+  if (ship.dockTimer > 0) return;
 
-export function tick(state, dtSec) {
-  const rates = getResourcePerSecond(state);
-  for (const r of RES_KEYS) {
-    state.resources[r] = Math.min(state.caps[r], state.resources[r] + rates[r] * dtSec);
+  if (ship.state === "LOADING") {
+    const cap = ship.capacity + state.modifiers.shipCapacity;
+    let used = 0;
+    for (const res of Object.keys(RESOURCES)) {
+      if (res !== p.primaryResource) continue;
+      const take = Math.min(p.buffer[res], cap - used);
+      p.buffer[res] -= take;
+      ship.cargo[res] += take;
+      used += take;
+    }
+    ship.state = "TRAVEL_TO_MOTHERSHIP";
+  } else {
+    for (const res of Object.keys(RESOURCES)) {
+      const amount = ship.cargo[res];
+      if (!amount) continue;
+      const room = Math.max(0, state.storageCap[res] - state.resources[res]);
+      const moved = Math.min(room, amount);
+      state.resources[res] += moved;
+      ship.cargo[res] -= moved;
+      if (moved > 0) state.fx.floaters.push({ x: 0, y: 0, text: `+${moved.toFixed(1)} ${RESOURCES[res].name}`, life: 1.4, color: RESOURCES[res].color });
+      if (res === "ore" && state.modifiers.refining > 0 && moved > 0) {
+        state.resources.energy = Math.min(state.storageCap.energy, state.resources.energy + moved * state.modifiers.refining);
+      }
+    }
+    ship.state = "TRAVEL_TO_PLANET";
   }
+  ship.progress = 0;
 }
 
-export function applyOfflineProgress(state) {
-  const now = Date.now();
-  const dt = Math.min(12 * 3600, Math.max(0, (now - state.lastSeen) / 1000));
-  if (dt > 0) tick(state, dt);
-  state.lastSeen = now;
-  return dt;
+function stepFx(state, dt) {
+  state.fx.floaters = state.fx.floaters.filter(f => (f.life -= dt) > 0);
 }
 
-function canAfford(state, cost) {
+export function canAfford(state, cost) {
   return Object.entries(cost).every(([k, v]) => (state.resources[k] || 0) >= v);
 }
 
-function spend(state, cost) {
-  for (const [k, v] of Object.entries(cost)) state.resources[k] -= v;
+export function payCost(state, cost) {
+  if (!canAfford(state, cost)) return false;
+  Object.entries(cost).forEach(([k, v]) => { state.resources[k] -= v; });
+  return true;
 }
 
-export function tryPlaceBuilding(state, planetId, x, y, type) {
-  const planet = getPlanet(state, planetId);
-  const pState = state.planets[planetId];
-  const tile = pState.map.tiles[tileIndex(x, y)];
-  if (!tile) return { ok: false, reason: "out" };
-
-  if (pState.buildings.extractors.some((b) => b.x === x && b.y === y)) return { ok: false, reason: "occupied" };
-  for (const t of ["power", "lab", "storage"]) {
-    const b = pState.buildings[t];
-    if (b.placed && b.x === x && b.y === y) return { ok: false, reason: "occupied" };
-  }
-
-  const discount = techDiscount(pState.buildings.lab.level);
-  const logistics = state.tech.logistics;
-  if (type === "extractor") {
-    if (tile.type !== "node") return { ok: false, reason: "needsNode" };
-    const cost = extractorBuildCost(planet, pState.buildings.extractors.length + 1, discount, logistics);
-    if (!canAfford(state, cost)) return { ok: false, reason: "cost", cost };
-    spend(state, cost);
-    pState.buildings.extractors.push({ x, y, level: 1 });
-    return { ok: true, cost };
-  }
-
-  if (tile.type !== "empty") return { ok: false, reason: "needsEmpty" };
-  const slot = pState.buildings[type];
-  if (!slot || slot.placed) return { ok: false, reason: "exists" };
-
-  const level = 1;
-  const costByType = {
-    power: powerUpgradeCost,
-    lab: labUpgradeCost,
-    storage: storageUpgradeCost,
-  };
-  const cost = costByType[type](planet, level, discount, logistics);
-  if (!canAfford(state, cost)) return { ok: false, reason: "cost", cost };
-  spend(state, cost);
-  pState.buildings[type] = { placed: true, x, y, level };
-  recalcCaps(state);
-  return { ok: true, cost };
+export function buyShip(state) {
+  const cost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12 };
+  if (!payCost(state, cost)) return false;
+  const ship = makeShip(state.nextShipId++);
+  const unlocked = state.planets.filter(p => p.unlocked);
+  ship.planetId = unlocked[state.ships.length % unlocked.length].id;
+  state.ships.push(ship);
+  return true;
 }
 
-export function tryUpgrade(state, planetId, type, idx = -1) {
-  const pState = state.planets[planetId];
-  const planet = getPlanet(state, planetId);
-  const discount = techDiscount(pState.buildings.lab.level);
-  const logistics = state.tech.logistics;
-
-  if (type === "extractor") {
-    const ext = pState.buildings.extractors[idx];
-    if (!ext || ext.level >= 10) return { ok: false };
-    const cost = extractorUpgradeCost(planet, ext.level, discount, logistics);
-    if (!canAfford(state, cost)) return { ok: false, cost };
-    spend(state, cost);
-    ext.level += 1;
-    return { ok: true, cost };
-  }
-
-  const b = pState.buildings[type];
-  if (!b.placed || b.level >= 10) return { ok: false };
-  const fns = { power: powerUpgradeCost, lab: labUpgradeCost, storage: storageUpgradeCost };
-  const cost = fns[type](planet, b.level + 1, discount, logistics);
-  if (!canAfford(state, cost)) return { ok: false, cost };
-  spend(state, cost);
-  b.level += 1;
-  if (type === "storage") recalcCaps(state);
-  return { ok: true, cost };
+export function unlockPlanet(state, planetId) {
+  const p = state.planets.find(x => x.id === planetId);
+  if (!p || p.unlocked || !payCost(state, p.unlockCost)) return false;
+  p.unlocked = true;
+  return true;
 }
 
-export function tryBuyTech(state, key) {
-  const rank = state.tech[key];
-  if (rank >= 10) return { ok: false };
-  const terraLab = state.planets.terra.buildings.lab.level;
-  const cost = techCost(key, rank + 1, techDiscount(terraLab));
-  if (!canAfford(state, cost)) return { ok: false, cost };
-  spend(state, cost);
-  state.tech[key] += 1;
-  return { ok: true, cost };
+export function upgradeExtractor(state, planetId) {
+  const p = state.planets.find(x => x.id === planetId);
+  const cost = { ore: 25 * p.extractorLevel, bio: 10 * p.extractorLevel };
+  if (!p || !payCost(state, cost)) return false;
+  p.extractorLevel += 1;
+  return true;
 }
 
-export function tryUnlock(state, planetId) {
-  if (state.planets[planetId].unlocked) return { ok: false };
-  if (!canUnlockPlanet(state, planetId)) return { ok: false };
-  payUnlockCost(state, planetId);
-  state.planets[planetId].unlocked = true;
-  return { ok: true };
+export function buyUpgrade(state, upgradeId) {
+  const up = UPGRADES.find(u => u.id === upgradeId);
+  if (!up || state.unlockedUpgrades.includes(up.id)) return false;
+  if (!up.prereq.every(x => state.unlockedUpgrades.includes(x))) return false;
+  if (!payCost(state, up.cost)) return false;
+  up.effect(state);
+  state.unlockedUpgrades.push(up.id);
+  return true;
+}
+
+function autoAssignRoutes(state) {
+  const unlocked = state.planets.filter(p => p.unlocked);
+  if (!unlocked.length) return;
+  const ranked = unlocked.slice().sort((a, b) => (b.richness / b.distance) - (a.richness / a.distance));
+  state.ships.forEach((s, i) => { s.planetId = ranked[i % ranked.length].id; });
 }
