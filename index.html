@@ -1,48 +1,75 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Codex Playground</title>
-  <style>
-    body { font-family: Arial, sans-serif; }
-    .tabs { display: flex; }
-    .tab { padding: 10px 20px; cursor: pointer; border: 1px solid #ccc; border-bottom: none; }
-    .tab.active { background-color: #f0f0f0; }
-    .tab-content { border: 1px solid #ccc; padding: 20px; }
-    .tab-content > div { display: none; }
-    .tab-content > div.active { display: block; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Planetary Dominion</title>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="tabs">
-    <div class="tab active" data-target="home">Home</div>
-    <div class="tab" data-target="profile">My Profile</div>
-  </div>
-  <div class="tab-content">
-    <div id="home" class="active">
-      <h2>Welcome to the Codex Playground</h2>
-      <p>This is the home tab.</p>
+  <div id="app">
+    <div id="canvasWrap"><canvas id="gameCanvas"></canvas></div>
+    <div id="overlay">
+      <div id="resourceBar"></div>
+      <section id="panel"></section>
+      <nav id="tabs">
+        <button data-tab="planet" class="active">Planet</button>
+        <button data-tab="build">Build</button>
+        <button data-tab="tech">Tech</button>
+        <button data-tab="settings">Settings</button>
+      </nav>
     </div>
-    <div id="profile">
-      <h2>My Profile</h2>
-      <p>Profile details go here.</p>
-    </div>
   </div>
 
-  <script>
-    const tabs = document.querySelectorAll('.tab');
-    const contents = document.querySelectorAll('.tab-content > div');
+  <script type="module">
+    import { loadGame, saveGame } from "./modules/save.js";
+    import { applyOfflineProgress, tick, recalcCaps } from "./modules/sim.js";
+    import { Renderer } from "./modules/renderer.js";
+    import { attachInput } from "./modules/input.js";
+    import { setupUI } from "./modules/ui.js";
 
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        contents.forEach(c => c.classList.remove('active'));
+    const state = loadGame();
+    applyOfflineProgress(state);
+    recalcCaps(state);
 
-        tab.classList.add('active');
-        const target = document.getElementById(tab.dataset.target);
-        target.classList.add('active');
-      });
+    if (state.settings.reducedMotion) document.body.classList.add("reduce-motion");
+
+    const canvas = document.getElementById("gameCanvas");
+    const renderer = new Renderer(canvas, state);
+    const ui = setupUI(state, onStateChanged);
+
+    function onStateChanged() {
+      recalcCaps(state);
+      ui.render();
+    }
+
+    attachInput(canvas, state, renderer, onStateChanged);
+    window.addEventListener("resize", () => renderer.resize());
+    ui.render();
+
+    let acc = 0;
+    let last = performance.now();
+    function frame(now) {
+      const dt = (now - last) / 1000;
+      last = now;
+      acc += dt;
+      const fixed = 0.2;
+      while (acc >= fixed) {
+        tick(state, fixed);
+        acc -= fixed;
+      }
+      renderer.draw();
+      if (!state.settings.reducedMotion || now % 200 < 16) ui.render();
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    setInterval(() => saveGame(state), 10000);
+    const saveNow = () => saveGame(state);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) saveNow();
     });
+    window.addEventListener("pagehide", saveNow);
   </script>
 </body>
 </html>
