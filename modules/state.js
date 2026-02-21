@@ -5,6 +5,13 @@ import { PLANET_TEMPLATES, RESOURCES } from "./content.js";
 /** @returns {import('./types').GameState|any} */
 export function createInitialState() {
   const now = Date.now();
+  const unlockCostsByIndex = [
+    { ore: 0, water: 0, bio: 0, energy: 0 },
+    { ore: 85, water: 0, bio: 0, energy: 0 },
+    { ore: 130, water: 45, bio: 0, energy: 0 },
+    { ore: 180, water: 70, bio: 35, energy: 0 },
+    { ore: 240, water: 90, bio: 55, energy: 40 },
+  ];
   const planets = PLANET_TEMPLATES.map((tpl, i) => ({
     id: `planet-${i}`,
     name: `${tpl.type[0].toUpperCase()}${tpl.type.slice(1)}-${i + 1}`,
@@ -12,17 +19,17 @@ export function createInitialState() {
     distance: 160 + i * 90,
     angle: (Math.PI * 2 * i) / PLANET_TEMPLATES.length,
     unlocked: i === 0,
-    unlockCost: { ore: 35 + i * 50, water: i * 20, bio: i * 15, energy: i * 10 },
+    unlockCost: unlockCostsByIndex[i],
     extractorLevel: 1,
     extractorSlots: 1 + Math.floor(i / 2),
     buffer: Object.fromEntries(Object.keys(RESOURCES).map(r => [r, 0])),
   }));
 
   return {
-    version: 1,
+    version: 2,
     time: now,
     lastSaveAt: now,
-    resources: { ore: 80, water: 40, bio: 20, energy: 20 },
+    resources: { ore: 90, water: 30, bio: 20, energy: 20 },
     rates: { ore: 0, water: 0, bio: 0, energy: 0 },
     storageCap: { ore: 500, water: 500, bio: 500, energy: 500 },
     mothership: { x: 0, y: 0 },
