@@ -93,6 +93,8 @@ function drawShip(state, ctx, s) {
   const control = { x: (a.x + b.x) / 2 + (b.y - a.y) * 0.18, y: (a.y + b.y) / 2 - (b.x - a.x) * 0.18 };
   const t = (s.state === "TRAVEL_TO_PLANET" || s.state === "TRAVEL_TO_MOTHERSHIP") ? s.progress : (rev ? 1 : 0);
   const pos = bezier(a, control, b, t);
+  const heading = bezierTangent(a, control, b, t);
+  const angle = Math.atan2(heading.y, heading.x);
 
   ctx.strokeStyle = "rgba(120,160,210,.2)";
   ctx.beginPath();
@@ -102,6 +104,7 @@ function drawShip(state, ctx, s) {
 
   ctx.save();
   ctx.translate(pos.x, pos.y);
+  ctx.rotate(angle);
   ctx.fillStyle = "#d4e8ff";
   ctx.beginPath();
   ctx.moveTo(8, 0); ctx.lineTo(-7, 5); ctx.lineTo(-4, 0); ctx.lineTo(-7, -5);
@@ -141,6 +144,13 @@ function bezier(a, c, b, t) {
   return {
     x: mt * mt * a.x + 2 * mt * t * c.x + t * t * b.x,
     y: mt * mt * a.y + 2 * mt * t * c.y + t * t * b.y,
+  };
+}
+
+function bezierTangent(a, c, b, t) {
+  return {
+    x: 2 * (1 - t) * (c.x - a.x) + 2 * t * (b.x - c.x),
+    y: 2 * (1 - t) * (c.y - a.y) + 2 * t * (b.y - c.y),
   };
 }
 
