@@ -1,48 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Codex Playground</title>
-  <style>
-    body { font-family: Arial, sans-serif; }
-    .tabs { display: flex; }
-    .tab { padding: 10px 20px; cursor: pointer; border: 1px solid #ccc; border-bottom: none; }
-    .tab.active { background-color: #f0f0f0; }
-    .tab-content { border: 1px solid #ccc; padding: 20px; }
-    .tab-content > div { display: none; }
-    .tab-content > div.active { display: block; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <title>Planet Hauler Command</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="tabs">
-    <div class="tab active" data-target="home">Home</div>
-    <div class="tab" data-target="profile">My Profile</div>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">Planet Hauler Command</div>
+      <div id="resourceBar" class="resource-bar"></div>
+    </header>
+
+    <main class="layout">
+      <aside id="actionsPanel" class="panel desktop-panel mobile-sheet" data-mobile-sheet="actions"></aside>
+      <section class="viewport-wrap">
+        <canvas id="gameCanvas" aria-label="Star system viewport"></canvas>
+      </section>
+      <aside id="detailsPanel" class="panel desktop-panel mobile-sheet" data-mobile-sheet="details"></aside>
+    </main>
+
+    <section id="techPanel" class="panel tech-desktop mobile-sheet" data-mobile-sheet="tech"></section>
+
+    <nav class="mobile-nav">
+      <button class="mobile-tab active" data-tab="actions">Actions</button>
+      <button class="mobile-tab" data-tab="details">Details</button>
+      <button class="mobile-tab" data-tab="tech">Tech</button>
+    </nav>
+
+    <button id="resetSaveBtn" class="reset-btn">Reset Save</button>
   </div>
-  <div class="tab-content">
-    <div id="home" class="active">
-      <h2>Welcome to the Codex Playground</h2>
-      <p>This is the home tab.</p>
-    </div>
-    <div id="profile">
-      <h2>My Profile</h2>
-      <p>Profile details go here.</p>
-    </div>
-  </div>
-
-  <script>
-    const tabs = document.querySelectorAll('.tab');
-    const contents = document.querySelectorAll('.tab-content > div');
-
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        contents.forEach(c => c.classList.remove('active'));
-
-        tab.classList.add('active');
-        const target = document.getElementById(tab.dataset.target);
-        target.classList.add('active');
-      });
-    });
-  </script>
+  <script type="module" src="game.js"></script>
 </body>
 </html>
