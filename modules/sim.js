@@ -3,6 +3,13 @@ import { makeShip } from "./state.js";
 
 const TICK_DT = 0.1;
 
+function getFxConfig(state) {
+  const quality = state.settings?.fxQuality || "high";
+  const reducedMotion = !!state.settings?.reducedMotion;
+  const pulseLife = reducedMotion ? 0.6 : 1.2;
+  return { quality, reducedMotion, pulseLife, pulseInterval: reducedMotion ? 2 : 1 };
+}
+
 export function tick(state) {
   state.rates = { ore: 0, water: 0, bio: 0, energy: 0 };
   producePlanets(state, TICK_DT);
@@ -13,11 +20,24 @@ export function tick(state) {
 }
 
 function producePlanets(state, dt) {
+  const fxConfig = getFxConfig(state);
   for (const p of state.planets) {
     if (!p.unlocked) continue;
     const base = 0.9 * p.richness * p.extractorLevel * p.extractorSlots * state.modifiers.extractorOutput;
     p.buffer[p.primaryResource] += base * dt;
     state.rates[p.primaryResource] += base;
+
+    if (base * dt <= 0 || !state.fx.pulses) continue;
+    const cadence = fxConfig.pulseInterval;
+    const gate = Math.floor((state.time / 1000) / cadence);
+    if ((gate + p.distance) % 2 !== 0) continue;
+    if (state.fx.pulses.length > 60) continue;
+    state.fx.pulses.push({
+      planetId: p.id,
+      resource: p.primaryResource,
+      life: fxConfig.pulseLife,
+      maxLife: fxConfig.pulseLife,
+    });
   }
 }
 
@@ -40,6 +60,7 @@ function stepShip(state, ship, dt) {
   ship.dockTimer -= dt;
   if (ship.dockTimer > 0) return;
 
+  let totalMoved = 0;
   if (ship.state === "LOADING") {
     const cap = ship.capacity + state.modifiers.shipCapacity;
     let used = 0;
@@ -59,10 +80,17 @@ function stepShip(state, ship, dt) {
       const moved = Math.min(room, amount);
       state.resources[res] += moved;
       ship.cargo[res] -= moved;
-      if (moved > 0) state.fx.floaters.push({ x: 0, y: 0, text: `+${moved.toFixed(1)} ${RESOURCES[res].name}`, life: 1.4, color: RESOURCES[res].color });
+      if (moved > 0) {
+        totalMoved += moved;
+        state.fx.floaters.push({ x: 0, y: 0, text: `+${moved.toFixed(1)} ${RESOURCES[res].name}`, life: 1.4, color: RESOURCES[res].color });
+      }
       if (res === "ore" && state.modifiers.refining > 0 && moved > 0) {
         state.resources.energy = Math.min(state.storageCap.energy, state.resources.energy + moved * state.modifiers.refining);
       }
+    }
+    if (totalMoved > 0 && state.fx.bursts && state.fx.bursts.length < 30) {
+      const fxConfig = getFxConfig(state);
+      state.fx.bursts.push({ x: 0, y: 0, life: fxConfig.reducedMotion ? 0.35 : 0.55, maxLife: fxConfig.reducedMotion ? 0.35 : 0.55, size: Math.min(34, 16 + totalMoved * 0.2) });
     }
     ship.state = "TRAVEL_TO_PLANET";
   }
@@ -71,6 +99,8 @@ function stepShip(state, ship, dt) {
 
 function stepFx(state, dt) {
   state.fx.floaters = state.fx.floaters.filter(f => (f.life -= dt) > 0);
+  state.fx.pulses = (state.fx.pulses || []).filter(f => (f.life -= dt) > 0);
+  state.fx.bursts = (state.fx.bursts || []).filter(f => (f.life -= dt) > 0);
 }
 
 export function canAfford(state, cost) {
