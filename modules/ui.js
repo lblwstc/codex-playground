@@ -23,6 +23,8 @@ function handleActionClick(state, refs, e) {
   if (action.startsWith("unlock:")) unlockPlanet(state, action.split(":")[1]);
   if (action.startsWith("extractor:")) upgradeExtractor(state, action.split(":")[1]);
   if (action.startsWith("tech:")) buyUpgrade(state, action.split(":")[1]);
+  if (action.startsWith("fx:")) state.settings.fxQuality = action.split(":")[1];
+  if (action === "motion:toggle") state.settings.reducedMotion = !state.settings.reducedMotion;
   if (action.startsWith("assign:")) {
     const pid = action.split(":")[1];
     const ship = state.ships.find(s => s.id === state.selected.id);
@@ -32,12 +34,15 @@ function handleActionClick(state, refs, e) {
 }
 
 export function drawTopBar(state, topBar) {
+  const prev = state.uiPrevResources || { ...state.resources };
   topBar.innerHTML = Object.entries(RESOURCES).map(([id, r]) => {
     const cur = state.resources[id].toFixed(1);
     const cap = state.storageCap[id].toFixed(0);
     const rate = state.rates[id].toFixed(1);
-    return `<div class="resourceChip"><span class="resourceDot" style="background:${r.color}"></span>${r.name}: ${cur}/${cap} <span class="meta">(+${rate}/s)</span></div>`;
+    const gained = state.resources[id] > (prev[id] || 0) + 0.01;
+    return `<div class="resourceChip ${gained ? "gainPulse" : ""}"><span class="resourceDot" style="background:${r.color}"></span>${r.name}: ${cur}/${cap} <span class="meta">(+${rate}/s)</span></div>`;
   }).join("");
+  state.uiPrevResources = { ...state.resources };
 }
 
 export function drawPanels(state, refs) {
@@ -57,7 +62,19 @@ function renderActions(state) {
     <div class="card">Unlocked Planets: ${unlocked}/${state.planets.length}
       ${next ? `<button data-action="unlock:${next.id}" ${canAfford(state, next.unlockCost) ? "" : "disabled"}>Unlock ${next.name} (${fmtCost(next.unlockCost)})</button>` : "All planets unlocked"}
     </div>
-    ${renderTech(state)}`;
+    ${renderSettings(state)}${renderTech(state)}`;
+}
+
+
+function renderSettings(state) {
+  const q = state.settings?.fxQuality || "high";
+  return `<h3>Visual</h3><div class="card">
+    <div class="meta">Quality & accessibility</div>
+    <button data-action="fx:high" ${q === "high" ? "disabled" : ""}>FX Quality: High</button>
+    <button data-action="fx:medium" ${q === "medium" ? "disabled" : ""}>FX Quality: Medium</button>
+    <button data-action="fx:low" ${q === "low" ? "disabled" : ""}>FX Quality: Low</button>
+    <button data-action="motion:toggle">Reduced Motion: ${state.settings?.reducedMotion ? "On" : "Off"}</button>
+  </div>`;
 }
 
 function renderTech(state) {

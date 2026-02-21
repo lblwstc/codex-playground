@@ -14,8 +14,11 @@ const refs = {
   mobileSheet: document.getElementById("mobileSheet"),
 };
 
-const state = loadGame() || createInitialState();
-if (loadGame()) applyOfflineProgress(state);
+const loaded = loadGame();
+const state = loaded || createInitialState();
+if (loaded) applyOfflineProgress(state);
+state.settings = { fxQuality: "high", reducedMotion: false, ...(state.settings || {}) };
+state.fx = { floaters: [], pulses: [], bursts: [], twinkleSeed: Math.random() * 9999, ...(state.fx || {}) };
 window.resetSave = () => { resetSave(); location.reload(); };
 
 bindUI(state, refs);
