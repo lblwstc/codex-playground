@@ -22,6 +22,9 @@ body { overflow: hidden; }
   gap: 10px;
   background: linear-gradient(180deg, rgba(19, 29, 54, 0.95), rgba(10, 15, 30, 0.9));
   border-bottom: 1px solid var(--panel-border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 .resourceChip {
   display: inline-flex;
@@ -31,6 +34,8 @@ body { overflow: hidden; }
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 13px;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 .resourceDot { width: 10px; height: 10px; border-radius: 50%; }
 
@@ -67,9 +72,26 @@ button:not(:disabled):active { transform: translateY(1px); }
 #mobileTabs, #mobileSheet { display: none; }
 
 @media (max-width: 900px) {
+  html, body, #app {
+    height: 100dvh;
+  }
+  #app {
+    grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 42vh);
+  }
+  #topBar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .resourceChip {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
   #gameLayout { grid-template-columns: 1fr; }
   #leftPanel, #rightPanel { display: none; }
-  #canvasWrap { margin: 0; }
+  #canvasWrap {
+    margin: 0;
+    min-height: 0;
+  }
   #mobileTabs {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -81,10 +103,12 @@ button:not(:disabled):active { transform: translateY(1px); }
   .tabBtn.active { outline: 2px solid var(--accent); }
   #mobileSheet {
     display: block;
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: calc(70px + env(safe-area-inset-bottom));
-    max-height: 40vh;
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 0 10px 10px;
+    max-height: none;
+    min-height: 0;
   }
 }
