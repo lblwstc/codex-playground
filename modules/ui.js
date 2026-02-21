@@ -1,10 +1,38 @@
 import { INDUSTRIES, RESOURCES, UPGRADES } from "./content.js";
 import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry } from "./sim.js";
 
+let clickAudioCtx;
+
+function playClickSound() {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return;
+
+  if (!clickAudioCtx) clickAudioCtx = new AudioContextCtor();
+  if (clickAudioCtx.state === "suspended") clickAudioCtx.resume();
+
+  const now = clickAudioCtx.currentTime;
+  const osc = clickAudioCtx.createOscillator();
+  const gain = clickAudioCtx.createGain();
+
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(1200, now);
+  osc.frequency.exponentialRampToValueAtTime(680, now + 0.03);
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.06, now + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+
+  osc.connect(gain);
+  gain.connect(clickAudioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.055);
+}
+
 export function bindUI(state, refs) {
   refs.mobileTabs.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-tab]");
     if (!btn) return;
+    playClickSound();
     state.mobileTab = btn.dataset.tab;
     [...refs.mobileTabs.querySelectorAll("button")].forEach(b => b.classList.toggle("active", b === btn));
     drawPanels(state, refs);
@@ -18,6 +46,7 @@ export function bindUI(state, refs) {
 function handleActionClick(state, refs, e) {
   const b = e.target.closest("button[data-action]");
   if (!b) return;
+  playClickSound();
   const action = b.dataset.action;
   if (action === "buyShip") buyShip(state);
   if (action.startsWith("unlock:")) unlockPlanet(state, action.split(":")[1]);
