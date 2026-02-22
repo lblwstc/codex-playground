@@ -31,13 +31,18 @@ function handleActionClick(state, refs, e) {
   drawPanels(state, refs);
 }
 
+let _lastTopBarHTML = "";
 export function drawTopBar(state, topBar) {
-  topBar.innerHTML = Object.entries(RESOURCES).map(([id, r]) => {
+  const html = Object.entries(RESOURCES).map(([id, r]) => {
     const cur = state.resources[id].toFixed(1);
     const cap = state.storageCap[id].toFixed(0);
     const rate = state.rates[id].toFixed(1);
     return `<div class="resourceChip"><span class="resourceDot" style="background:${r.color}"></span>${r.name}: ${cur}/${cap} <span class="meta">(+${rate}/s)</span></div>`;
   }).join("");
+  if (html !== _lastTopBarHTML) {
+    topBar.innerHTML = html;
+    _lastTopBarHTML = html;
+  }
 }
 
 export function drawPanels(state, refs) {

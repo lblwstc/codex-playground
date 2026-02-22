@@ -14,8 +14,9 @@ const refs = {
   mobileSheet: document.getElementById("mobileSheet"),
 };
 
-const state = loadGame() || createInitialState();
-if (loadGame()) applyOfflineProgress(state);
+const saved = loadGame();
+const state = saved || createInitialState();
+if (saved) applyOfflineProgress(state);
 window.resetSave = () => { resetSave(); location.reload(); };
 
 bindUI(state, refs);
