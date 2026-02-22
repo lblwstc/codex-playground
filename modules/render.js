@@ -34,20 +34,60 @@ function planetPos(p) {
 
 function drawMothership(state, ctx) {
   ctx.save();
+
+  const hullGradient = ctx.createLinearGradient(-40, 0, 48, 0);
+  hullGradient.addColorStop(0, "#4a78af");
+  hullGradient.addColorStop(0.55, "#8fc4ff");
+  hullGradient.addColorStop(1, "#d8ecff");
+
+  ctx.fillStyle = hullGradient;
   ctx.beginPath();
-  ctx.fillStyle = "#9ec8ff";
-  ctx.arc(0, 0, 26, 0, Math.PI * 2);
+  ctx.moveTo(-44, 0);
+  ctx.quadraticCurveTo(-18, -20, 26, -14);
+  ctx.lineTo(52, 0);
+  ctx.lineTo(26, 14);
+  ctx.quadraticCurveTo(-18, 20, -44, 0);
+  ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = "#d5ecff";
-  ctx.lineWidth = 3;
+
+  ctx.fillStyle = "rgba(170, 214, 255, 0.9)";
+  ctx.beginPath();
+  ctx.ellipse(-4, -7, 12, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#375a8c";
+  ctx.beginPath();
+  ctx.moveTo(-28, -12);
+  ctx.lineTo(-52, -22);
+  ctx.lineTo(-38, -4);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-28, 12);
+  ctx.lineTo(-52, 22);
+  ctx.lineTo(-38, 4);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(100,213,255,.88)";
+  ctx.fillRect(-52, -5, 10, 10);
+
+  ctx.strokeStyle = "rgba(225, 241, 255, 0.85)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-30, 0);
+  ctx.lineTo(38, 0);
   ctx.stroke();
+
   if (state.selected.kind === "mothership") {
     ctx.strokeStyle = "rgba(100,213,255,0.8)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, 34, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 62, 32, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
+
   ctx.restore();
 }
 
@@ -159,7 +199,7 @@ export function hitTest(state, worldX, worldY) {
     const pos = planetPos(p);
     if (Math.hypot(worldX - pos.x, worldY - pos.y) < 24) return { kind: "planet", id: p.id };
   }
-  if (Math.hypot(worldX, worldY) < 28) return { kind: "mothership", id: "mothership" };
+  if ((worldX * worldX) / (62 * 62) + (worldY * worldY) / (32 * 32) < 1) return { kind: "mothership", id: "mothership" };
   for (const s of state.ships) {
     const p = state.planets.find(x => x.id === s.planetId);
     const to = planetPos(p);

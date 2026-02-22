@@ -1,5 +1,5 @@
 import { INDUSTRIES, RESOURCES, UPGRADES } from "./content.js";
-import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry } from "./sim.js";
+import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry, buyMothership, mothershipCost } from "./sim.js";
 
 let clickAudioCtx;
 
@@ -49,6 +49,7 @@ function handleActionClick(state, refs, e) {
   playClickSound();
   const action = b.dataset.action;
   if (action === "buyShip") buyShip(state);
+  if (action === "buyMothership") buyMothership(state);
   if (action.startsWith("unlock:")) unlockPlanet(state, action.split(":")[1]);
   if (action.startsWith("extractor:")) upgradeExtractor(state, action.split(":")[1]);
   if (action.startsWith("tech:")) buyUpgrade(state, action.split(":")[1]);
@@ -84,9 +85,13 @@ function renderActions(state) {
   const unlocked = state.planets.filter(p => p.unlocked).length;
   const next = state.planets.find(p => !p.unlocked);
   const shipCost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12, alloy: state.ships.length > 2 ? 14 + state.ships.length * 3 : 0 };
+  const nextMothershipCost = mothershipCost(state);
   return `<h3>Actions</h3>
     <div class="card">Ships: ${state.ships.length}
       <button data-action="buyShip" ${canAfford(state, shipCost) ? "" : "disabled"}>Buy Ship (${fmtCost(shipCost)})</button>
+    </div>
+    <div class="card">Motherships: ${state.mothership.count}
+      <button data-action="buyMothership" ${canAfford(state, nextMothershipCost) ? "" : "disabled"}>Buy Mothership (${fmtCost(nextMothershipCost)})</button>
     </div>
     <div class="card">Unlocked Planets: ${unlocked}/${state.planets.length}
       ${next ? `<button data-action="unlock:${next.id}" ${canAfford(state, next.unlockCost) ? "" : "disabled"}>Unlock ${next.name} (${fmtCost(next.unlockCost)})</button>` : "All planets unlocked"}
@@ -129,7 +134,8 @@ function renderDetails(state) {
       ${state.planets.filter(p => p.unlocked).map(p => `<button data-action="assign:${p.id}">Assign ${p.name}</button>`).join("")}
     </div>`;
   }
-  return `<h3>Mothership</h3><div class="card">Hub operational.<br/>Fleet: ${state.ships.length}<br/>Upgrades: ${state.unlockedUpgrades.length}
+  return `<h3>Mothership</h3><div class="card">Hub operational.<br/>Motherships: ${state.mothership.count}<br/>Fleet: ${state.ships.length}<br/>Upgrades: ${state.unlockedUpgrades.length}
+    <div class="meta">Hull Tier: ${state.mothership.tier}</div>
     <div class="meta">Colonies: ${state.planets.filter(p => p.colony.established).length}</div></div>`;
 }
 
