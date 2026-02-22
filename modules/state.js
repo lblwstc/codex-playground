@@ -71,7 +71,7 @@ export function createInitialState() {
     resources: { ...resourceMap(0), ore: 110, water: 40, bio: 30, energy: 30 },
     rates: resourceMap(0),
     storageCap: resourceMap(650),
-    mothership: { x: 0, y: 0 },
+    mothership: { x: 0, y: 0, count: 1, tier: 1 },
     planets,
     ships: [makeShip(0)],
     nextShipId: 1,
@@ -91,6 +91,7 @@ export function normalizeState(state) {
   state.rates = { ...fresh.rates, ...(state.rates || {}) };
   state.storageCap = { ...fresh.storageCap, ...(state.storageCap || {}) };
   state.modifiers = { ...fresh.modifiers, ...(state.modifiers || {}) };
+  state.mothership = { ...fresh.mothership, ...(state.mothership || {}) };
   state.planets = (state.planets || []).slice(0, PLANET_LIMIT);
 
   while (state.planets.length < PLANET_LIMIT) state.planets.push(createPlanet(state.planets.length));

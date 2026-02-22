@@ -122,6 +122,27 @@ export function buyShip(state) {
   return true;
 }
 
+export function mothershipCost(state) {
+  const owned = state.mothership.count;
+  return {
+    ore: 220 + owned * 140,
+    energy: 120 + owned * 80,
+    alloy: 45 + owned * 36,
+    crystal: owned > 1 ? 20 + owned * 16 : 0,
+  };
+}
+
+export function buyMothership(state) {
+  const cost = mothershipCost(state);
+  if (!payCost(state, cost)) return false;
+  state.mothership.count += 1;
+  state.mothership.tier += 1;
+  Object.keys(state.storageCap).forEach((id) => {
+    state.storageCap[id] += 220;
+  });
+  return true;
+}
+
 export function unlockPlanet(state, planetId) {
   const p = state.planets.find(x => x.id === planetId);
   if (!p || p.unlocked || !payCost(state, p.unlockCost)) return false;
