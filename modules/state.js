@@ -40,7 +40,8 @@ export function createInitialState() {
     modifiers: { shipSpeed: 1, shipCapacity: 0, dockTime: 1, extractorOutput: 1, routeAI: false, refining: 0 },
     unlockedUpgrades: [],
     camera: { x: 0, y: 0, zoom: 1 },
-    fx: { floaters: [], twinkleSeed: Math.random() * 9999 },
+    settings: { fxQuality: "high", reducedMotion: false },
+    fx: { floaters: [], pulses: [], bursts: [], twinkleSeed: Math.random() * 9999 },
     mobileTab: "actions",
   };
 }
