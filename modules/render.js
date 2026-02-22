@@ -10,7 +10,9 @@ export function render(state, ctx, canvas) {
   ctx.scale(state.camera.zoom, state.camera.zoom);
 
   drawMothership(state, ctx);
-  state.planets.filter(p => p.unlocked).forEach(p => drawPlanet(state, ctx, p));
+  drawCommandRange(state, ctx);
+  state.planets.forEach(p => drawPlanet(state, ctx, p));
+  (state.stations || []).forEach(station => drawStation(state, ctx, station));
   state.ships.forEach(s => drawShip(state, ctx, s));
   drawFloaters(state, ctx);
 
@@ -36,7 +38,7 @@ function drawMothership(state, ctx) {
   ctx.save();
   ctx.beginPath();
   ctx.fillStyle = "#9ec8ff";
-  ctx.arc(0, 0, 26, 0, Math.PI * 2);
+  ctx.arc(state.mothership.x, state.mothership.y, 26, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = "#d5ecff";
   ctx.lineWidth = 3;
@@ -45,18 +47,57 @@ function drawMothership(state, ctx) {
     ctx.strokeStyle = "rgba(100,213,255,0.8)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, 34, 0, Math.PI * 2);
+    ctx.arc(state.mothership.x, state.mothership.y, 34, 0, Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();
 }
 
+
+function drawCommandRange(state, ctx) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(100,213,255,0.22)";
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath();
+  ctx.arc(state.mothership.x, state.mothership.y, state.mothership.commandRange, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawStation(state, ctx, station) {
+  const inRange = Math.hypot(station.x - state.mothership.x, station.y - state.mothership.y) <= station.tradeRange;
+  ctx.save();
+  ctx.translate(station.x, station.y);
+  ctx.strokeStyle = inRange ? "#ffd46a" : "rgba(255,255,255,.5)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -14);
+  ctx.lineTo(12, 0);
+  ctx.lineTo(0, 14);
+  ctx.lineTo(-12, 0);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = inRange ? "rgba(255,212,106,.25)" : "rgba(200,220,255,.12)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.2)";
+  ctx.beginPath();
+  ctx.arc(0, 0, station.tradeRange, 0, Math.PI * 2);
+  ctx.stroke();
+  if (state.selected.kind === "station" && state.selected.id === station.id) {
+    ctx.strokeStyle = "#64d5ff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 function drawPlanet(state, ctx, p) {
   const pos = planetPos(p);
   const r = 18 + p.extractorLevel * 1.5;
   ctx.save();
   ctx.translate(pos.x, pos.y);
-  ctx.fillStyle = p.color;
+  ctx.fillStyle = p.unlocked ? p.color : "#38435a";
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
@@ -73,6 +114,15 @@ function drawPlanet(state, ctx, p) {
     ctx.arc(6, 4, 2, 0, Math.PI * 2);
     ctx.fill();
   }
+  const inRange = Math.hypot(pos.x - state.mothership.x, pos.y - state.mothership.y) <= state.mothership.commandRange;
+  if (!inRange) {
+    ctx.strokeStyle = "rgba(255,120,120,.55)";
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   if (state.selected.kind === "planet" && state.selected.id === p.id) {
     ctx.strokeStyle = "#64d5ff";
     ctx.lineWidth = 2;
@@ -86,7 +136,7 @@ function drawPlanet(state, ctx, p) {
 function drawShip(state, ctx, s) {
   const p = state.planets.find(x => x.id === s.planetId);
   if (!p) return;
-  const from = { x: 0, y: 0 }, to = planetPos(p);
+  const from = { x: state.mothership.x, y: state.mothership.y }, to = planetPos(p);
   const rev = s.state === "TRAVEL_TO_MOTHERSHIP" || s.state === "UNLOADING";
   const a = rev ? to : from;
   const b = rev ? from : to;
@@ -155,17 +205,21 @@ function bezierTangent(a, c, b, t) {
 }
 
 export function hitTest(state, worldX, worldY) {
-  for (const p of state.planets.filter(x => x.unlocked)) {
+  for (const p of state.planets) {
     const pos = planetPos(p);
     if (Math.hypot(worldX - pos.x, worldY - pos.y) < 24) return { kind: "planet", id: p.id };
   }
-  if (Math.hypot(worldX, worldY) < 28) return { kind: "mothership", id: "mothership" };
+  if (Math.hypot(worldX - state.mothership.x, worldY - state.mothership.y) < 28) return { kind: "mothership", id: "mothership" };
+  for (const station of (state.stations || [])) {
+    if (Math.hypot(worldX - station.x, worldY - station.y) < 20) return { kind: "station", id: station.id };
+  }
   for (const s of state.ships) {
     const p = state.planets.find(x => x.id === s.planetId);
     const to = planetPos(p);
     const rev = s.state === "TRAVEL_TO_MOTHERSHIP" || s.state === "UNLOADING";
-    const a = rev ? to : { x: 0, y: 0 };
-    const b = rev ? { x: 0, y: 0 } : to;
+    const home = { x: state.mothership.x, y: state.mothership.y };
+    const a = rev ? to : home;
+    const b = rev ? home : to;
     const c = { x: (a.x + b.x) / 2 + (b.y - a.y) * 0.18, y: (a.y + b.y) / 2 - (b.x - a.x) * 0.18 };
     const t = (s.state === "TRAVEL_TO_PLANET" || s.state === "TRAVEL_TO_MOTHERSHIP") ? s.progress : (rev ? 1 : 0);
     const pos = bezier(a, c, b, t);

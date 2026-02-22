@@ -3,6 +3,12 @@ import { makeShip } from "./state.js";
 
 const TICK_DT = 0.1;
 
+function inCommandRange(state, planet) {
+  const x = Math.cos(planet.angle) * planet.distance;
+  const y = Math.sin(planet.angle) * planet.distance;
+  return Math.hypot(x - state.mothership.x, y - state.mothership.y) <= state.mothership.commandRange;
+}
+
 export function tick(state) {
   state.rates = Object.fromEntries(Object.keys(RESOURCES).map(id => [id, 0]));
   producePlanets(state, TICK_DT);
@@ -50,7 +56,8 @@ function produceColonyScience(state, dt) {
 }
 
 function stepShip(state, ship, dt) {
-  const p = state.planets.find(x => x.id === ship.planetId && x.unlocked) || state.planets.find(x => x.unlocked);
+  const reachable = state.planets.filter(x => x.unlocked && inCommandRange(state, x));
+  const p = reachable.find(x => x.id === ship.planetId) || reachable[0];
   if (!p) return;
   const travelTime = p.distance / (ship.speed * state.modifiers.shipSpeed);
   const dockDuration = 2 * state.modifiers.dockTime;
@@ -116,7 +123,8 @@ export function buyShip(state) {
   const cost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12, alloy: state.ships.length > 2 ? 14 + state.ships.length * 3 : 0 };
   if (!payCost(state, cost)) return false;
   const ship = makeShip(state.nextShipId++);
-  const unlocked = state.planets.filter(p => p.unlocked);
+  const unlocked = state.planets.filter(p => p.unlocked && inCommandRange(state, p));
+  if (!unlocked.length) return false;
   ship.planetId = unlocked[state.ships.length % unlocked.length].id;
   state.ships.push(ship);
   return true;
@@ -124,7 +132,7 @@ export function buyShip(state) {
 
 export function unlockPlanet(state, planetId) {
   const p = state.planets.find(x => x.id === planetId);
-  if (!p || p.unlocked || !payCost(state, p.unlockCost)) return false;
+  if (!p || p.unlocked || !inCommandRange(state, p) || !payCost(state, p.unlockCost)) return false;
   p.unlocked = true;
   return true;
 }
@@ -171,8 +179,30 @@ export function buyUpgrade(state, upgradeId) {
   return true;
 }
 
+
+export function tradeWithStation(state, stationId) {
+  const station = (state.stations || []).find(s => s.id === stationId);
+  if (!station) return false;
+  const d = Math.hypot(station.x - state.mothership.x, station.y - state.mothership.y);
+  if (d > station.tradeRange) return false;
+
+  const trades = [
+    { give: { ore: 40 }, get: { energy: 32, water: 18 } },
+    { give: { bio: 28, water: 20 }, get: { science: 26 } },
+    { give: { crystal: 14, silicon: 16 }, get: { antimatter: 8, alloy: 10 } },
+  ];
+  const deal = trades[(Math.floor(state.time / 8000) + station.name.length) % trades.length];
+  if (!canAfford(state, deal.give)) return false;
+  payCost(state, deal.give);
+  Object.entries(deal.get).forEach(([k, v]) => {
+    state.resources[k] = Math.min(state.storageCap[k] || Infinity, (state.resources[k] || 0) + v);
+  });
+  state.fx.floaters.push({ x: station.x, y: station.y, text: `${station.name} traded`, life: 1.4, color: "#ffd46a" });
+  return true;
+}
+
 function autoAssignRoutes(state) {
-  const unlocked = state.planets.filter(p => p.unlocked);
+  const unlocked = state.planets.filter(p => p.unlocked && inCommandRange(state, p));
   if (!unlocked.length) return;
   const ranked = unlocked.slice().sort((a, b) => (b.richness * b.extractorSlots / b.distance) - (a.richness * a.extractorSlots / a.distance));
   state.ships.forEach((s, i) => { s.planetId = ranked[i % ranked.length].id; });

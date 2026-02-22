@@ -1,5 +1,5 @@
 import { INDUSTRIES, RESOURCES, UPGRADES } from "./content.js";
-import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry } from "./sim.js";
+import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry, tradeWithStation } from "./sim.js";
 
 export function bindUI(state, refs) {
   refs.mobileTabs.addEventListener("click", (e) => {
@@ -28,6 +28,8 @@ function handleActionClick(state, refs, e) {
     const [, pid, iid] = action.split(":");
     upgradeIndustry(state, pid, iid);
   }
+  if (action === "togglePlacement") state.placementMode = !state.placementMode;
+  if (action.startsWith("trade:")) tradeWithStation(state, action.split(":")[1]);
   if (action.startsWith("assign:")) {
     const pid = action.split(":")[1];
     const ship = state.ships.find(s => s.id === state.selected.id);
@@ -55,14 +57,15 @@ function renderActions(state) {
   const unlocked = state.planets.filter(p => p.unlocked).length;
   const next = state.planets.find(p => !p.unlocked);
   const shipCost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12, alloy: state.ships.length > 2 ? 14 + state.ships.length * 3 : 0 };
+  const reachable = state.planets.filter(p => p.unlocked && inRange(state, p)).length;
   return `<h3>Actions</h3>
     <div class="card">Ships: ${state.ships.length}
       <button data-action="buyShip" ${canAfford(state, shipCost) ? "" : "disabled"}>Buy Ship (${fmtCost(shipCost)})</button>
     </div>
-    <div class="card">Unlocked Planets: ${unlocked}/${state.planets.length}
-      ${next ? `<button data-action="unlock:${next.id}" ${canAfford(state, next.unlockCost) ? "" : "disabled"}>Unlock ${next.name} (${fmtCost(next.unlockCost)})</button>` : "All planets unlocked"}
+    <div class="card">Unlocked Planets: ${unlocked}/${state.planets.length}<br/><span class="meta">Reachable from mothership: ${reachable}</span>
+      ${next ? `<button data-action="unlock:${next.id}" ${(inRange(state, next) && canAfford(state, next.unlockCost)) ? "" : "disabled"}>Unlock ${next.name} (${fmtCost(next.unlockCost)})</button>` : "All planets unlocked"}
     </div>
-    ${renderTech(state)}`;
+    <div class="card"><strong>Mothership Positioning</strong><div class="meta">Move command hub to open up nearby worlds and stations.</div><button data-action="togglePlacement">${state.placementMode ? "Cancel placement" : "Reposition mothership"}</button></div>${renderTech(state)}`;
 }
 
 function renderTech(state) {
@@ -83,24 +86,44 @@ function renderDetails(state) {
     const p = state.planets.find(x => x.id === state.selected.id);
     const cost = { ore: 25 * p.extractorLevel, bio: 10 * p.extractorLevel, silicon: Math.max(0, 8 * (p.extractorLevel - 1)) };
     const colonyCost = { ore: 80 + p.distance * 0.12, water: 35, energy: 40, bio: 30 };
+    const reachable = inRange(state, p);
+    if (!p.unlocked) {
+      return `<h3>${p.name}</h3>
+      <div class="card">Type: ${p.type}<br/>Richness: x${p.richness}<br/>Distance: ${p.distance}
+      <div class="meta">Status: Locked planet</div>
+      <div class="meta">${reachable ? "Within command range" : "Move mothership closer to unlock"}</div>
+      <button data-action="unlock:${p.id}" ${(reachable && canAfford(state, p.unlockCost)) ? "" : "disabled"}>Unlock (${fmtCost(p.unlockCost)})</button>
+      </div>`;
+    }
     return `<h3>${p.name}</h3>
       <div class="card">Type: ${p.type}<br/>Richness: x${p.richness}<br/>Distance: ${p.distance}
       <div class="meta">Resource Mix: ${p.resourceProfile.map(x => `${RESOURCES[x.id].name} ${(x.share * 100).toFixed(0)}%`).join(", ")}</div>
       <div class="meta">Extractor Lv.${p.extractorLevel} (slots ${p.extractorSlots})</div>
       <div class="meta">Buffer: ${p.resourceProfile.map(x => `${RESOURCES[x.id].name} ${(p.buffer[x.id] || 0).toFixed(1)}`).join(", ")}</div>
-      <button data-action="extractor:${p.id}" ${canAfford(state, cost) ? "" : "disabled"}>Upgrade Extractor (${fmtCost(cost)})</button></div>
+      <button data-action="extractor:${p.id}" ${(reachable && canAfford(state, cost)) ? "" : "disabled"}>Upgrade Extractor (${fmtCost(cost)})</button></div>
       <div class="card"><strong>Colony</strong><br/>${p.colony.established ? `Population: ${Math.floor(p.colony.population)}` : "No colony established"}
-        ${p.colony.established ? renderIndustryButtons(state, p) : `<button data-action="colony:${p.id}" ${canAfford(state, colonyCost) ? "" : "disabled"}>Establish Colony (${fmtCost(colonyCost)})</button>`}
+        ${p.colony.established ? renderIndustryButtons(state, p) : `<button data-action="colony:${p.id}" ${(reachable && canAfford(state, colonyCost)) ? "" : "disabled"}>Establish Colony (${fmtCost(colonyCost)})</button>`}
       </div>`;
   }
   if (state.selected.kind === "ship") {
     const s = state.ships.find(x => x.id === state.selected.id);
     return `<h3>${s.id}</h3><div class="card">State: ${s.state}<br/>Route: Mothership ↔ ${s.planetId}<br/>ETA: ${(1 - s.progress).toFixed(2)}
       <div class="meta">Cargo: ${Object.entries(s.cargo).filter(([, v]) => v > 0.05).map(([k, v]) => `${k}:${v.toFixed(1)}`).join(", ") || "Empty"}</div>
-      ${state.planets.filter(p => p.unlocked).map(p => `<button data-action="assign:${p.id}">Assign ${p.name}</button>`).join("")}
+      ${state.planets.filter(p => p.unlocked && inRange(state, p)).map(p => `<button data-action="assign:${p.id}">Assign ${p.name}</button>`).join("") || `<div class="meta">No reachable planets in command range.</div>`}
+    </div>`;
+  }
+  if (state.selected.kind === "station") {
+    const station = (state.stations || []).find(s => s.id === state.selected.id);
+    const distance = Math.hypot(station.x - state.mothership.x, station.y - state.mothership.y);
+    const inTradeRange = distance <= station.tradeRange;
+    return `<h3>${station.name}</h3><div class="card">Neutral trading station.<br/>Distance: ${distance.toFixed(0)} (range ${station.tradeRange})
+      <div class="meta">Feature ideas: rotating contracts, station reputation tiers, convoy escort quests, rare blueprint auctions.</div>
+      <button data-action="trade:${station.id}" ${inTradeRange ? "" : "disabled"}>Execute rotating trade deal</button>
     </div>`;
   }
   return `<h3>Mothership</h3><div class="card">Hub operational.<br/>Fleet: ${state.ships.length}<br/>Upgrades: ${state.unlockedUpgrades.length}
+    <div class="meta">Command range: ${state.mothership.commandRange}</div>
+    <div class="meta">Placement mode: ${state.placementMode ? "Click map to move the mothership" : "Off"}</div>
     <div class="meta">Colonies: ${state.planets.filter(p => p.colony.established).length}</div></div>`;
 }
 
@@ -113,6 +136,12 @@ function renderIndustryButtons(state, p) {
       <button data-action="industry:${p.id}:${id}" ${canAfford(state, cost) ? "" : "disabled"}>Develop (${fmtCost(cost)})</button>
     </div>`;
   }).join("");
+}
+
+function inRange(state, p) {
+  const x = Math.cos(p.angle) * p.distance;
+  const y = Math.sin(p.angle) * p.distance;
+  return Math.hypot(x - state.mothership.x, y - state.mothership.y) <= state.mothership.commandRange;
 }
 
 function fmtCost(cost) {
