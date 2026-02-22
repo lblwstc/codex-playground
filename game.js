@@ -90,8 +90,14 @@ function setupInput() {
     if (pointers.size < 2) lastDist = 0;
     if (!down?.moved) {
       const world = screenToWorld(e.clientX, e.clientY);
-      const target = hitTest(state, world.x, world.y);
-      if (target) state.selected = target;
+      if (state.placementMode) {
+        state.mothership.x = world.x;
+        state.mothership.y = world.y;
+        state.placementMode = false;
+      } else {
+        const target = hitTest(state, world.x, world.y);
+        if (target) state.selected = target;
+      }
     }
   });
 

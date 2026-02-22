@@ -3,6 +3,14 @@ import { INDUSTRIES, PLANET_TEMPLATES, RESOURCES } from "./content.js";
 const RESOURCE_IDS = Object.keys(RESOURCES);
 const PLANET_LIMIT = 20;
 
+function makeStations() {
+  return [
+    { id: "station-0", name: "Drift Exchange", x: -360, y: 220, tradeRange: 170 },
+    { id: "station-1", name: "Helios Bazaar", x: 470, y: -180, tradeRange: 180 },
+    { id: "station-2", name: "Quiet Relay", x: 120, y: 430, tradeRange: 160 },
+  ];
+}
+
 function resourceMap(initial = 0) {
   return Object.fromEntries(RESOURCE_IDS.map(id => [id, initial]));
 }
@@ -65,14 +73,16 @@ export function createInitialState() {
   const planets = Array.from({ length: PLANET_LIMIT }, (_, i) => createPlanet(i));
 
   return {
-    version: 3,
+    version: 4,
     time: now,
     lastSaveAt: now,
     resources: { ...resourceMap(0), ore: 110, water: 40, bio: 30, energy: 30 },
     rates: resourceMap(0),
     storageCap: resourceMap(650),
-    mothership: { x: 0, y: 0 },
+    mothership: { x: 0, y: 0, commandRange: 460 },
+    placementMode: false,
     planets,
+    stations: makeStations(),
     ships: [makeShip(0)],
     nextShipId: 1,
     selected: { kind: "mothership", id: "mothership" },
@@ -91,6 +101,9 @@ export function normalizeState(state) {
   state.rates = { ...fresh.rates, ...(state.rates || {}) };
   state.storageCap = { ...fresh.storageCap, ...(state.storageCap || {}) };
   state.modifiers = { ...fresh.modifiers, ...(state.modifiers || {}) };
+  state.mothership = { ...fresh.mothership, ...(state.mothership || {}) };
+  state.placementMode = Boolean(state.placementMode);
+  state.stations = state.stations?.length ? state.stations : fresh.stations;
   state.planets = (state.planets || []).slice(0, PLANET_LIMIT);
 
   while (state.planets.length < PLANET_LIMIT) state.planets.push(createPlanet(state.planets.length));
