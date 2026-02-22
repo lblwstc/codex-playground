@@ -112,20 +112,14 @@ export function payCost(state, cost) {
   return true;
 }
 
-export function buyShip(state) {
-  const cost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12, alloy: state.ships.length > 2 ? 14 + state.ships.length * 3 : 0 };
-  if (!payCost(state, cost)) return false;
-  const ship = makeShip(state.nextShipId++);
-  const unlocked = state.planets.filter(p => p.unlocked);
-  ship.planetId = unlocked[state.ships.length % unlocked.length].id;
-  state.ships.push(ship);
-  return true;
-}
-
 export function unlockPlanet(state, planetId) {
   const p = state.planets.find(x => x.id === planetId);
   if (!p || p.unlocked || !payCost(state, p.unlockCost)) return false;
   p.unlocked = true;
+
+  const ship = makeShip(state.nextShipId++);
+  ship.planetId = p.id;
+  state.ships.push(ship);
   return true;
 }
 
