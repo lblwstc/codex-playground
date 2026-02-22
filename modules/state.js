@@ -32,9 +32,14 @@ function makeResourceProfile(template, index) {
   if (!weighted.length) weighted.push({ id: unlocked[0], weight: 1 });
 
   const extras = unlocked.filter(id => !weighted.some(w => w.id === id));
-  if (extras.length && index > 0) {
+  if (extras.length) {
     const seed = (index * 7) % extras.length;
     weighted.push({ id: extras[seed], weight: 0.22 + (index % 3) * 0.05 });
+  }
+
+  if (weighted.length < 2 && unlocked.length >= 2) {
+    const fallback = unlocked.find(id => !weighted.some(w => w.id === id));
+    if (fallback) weighted.push({ id: fallback, weight: 0.2 });
   }
 
   const total = weighted.reduce((sum, x) => sum + x.weight, 0);

@@ -1,5 +1,5 @@
 import { INDUSTRIES, RESOURCES, UPGRADES } from "./content.js";
-import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry } from "./sim.js";
+import { unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry } from "./sim.js";
 
 export function bindUI(state, refs) {
   refs.mobileTabs.addEventListener("click", (e) => {
@@ -19,7 +19,6 @@ function handleActionClick(state, refs, e) {
   const b = e.target.closest("button[data-action]");
   if (!b) return;
   const action = b.dataset.action;
-  if (action === "buyShip") buyShip(state);
   if (action.startsWith("unlock:")) unlockPlanet(state, action.split(":")[1]);
   if (action.startsWith("extractor:")) upgradeExtractor(state, action.split(":")[1]);
   if (action.startsWith("tech:")) buyUpgrade(state, action.split(":")[1]);
@@ -54,11 +53,8 @@ export function drawPanels(state, refs) {
 function renderActions(state) {
   const unlocked = state.planets.filter(p => p.unlocked).length;
   const next = state.planets.find(p => !p.unlocked);
-  const shipCost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12, alloy: state.ships.length > 2 ? 14 + state.ships.length * 3 : 0 };
   return `<h3>Actions</h3>
-    <div class="card">Ships: ${state.ships.length}
-      <button data-action="buyShip" ${canAfford(state, shipCost) ? "" : "disabled"}>Buy Ship (${fmtCost(shipCost)})</button>
-    </div>
+    <div class="card">Ships: ${state.ships.length}<div class="meta">Each newly unlocked planet grants 1 free ship.</div></div>
     <div class="card">Unlocked Planets: ${unlocked}/${state.planets.length}
       ${next ? `<button data-action="unlock:${next.id}" ${canAfford(state, next.unlockCost) ? "" : "disabled"}>Unlock ${next.name} (${fmtCost(next.unlockCost)})</button>` : "All planets unlocked"}
     </div>
