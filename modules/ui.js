@@ -1,5 +1,5 @@
 import { INDUSTRIES, RESOURCES, UPGRADES } from "./content.js";
-import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry, buyMothership, mothershipCost } from "./sim.js";
+import { buyShip, unlockPlanet, upgradeExtractor, buyUpgrade, canAfford, establishColony, upgradeIndustry, buyMothership, mothershipCost, shipCost, extractorCost, colonyCost } from "./sim.js";
 
 let clickAudioCtx;
 
@@ -89,11 +89,11 @@ export function drawPanels(state, refs) {
 function renderActions(state) {
   const unlocked = state.planets.filter(p => p.unlocked).length;
   const next = state.planets.find(p => !p.unlocked);
-  const shipCost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12, alloy: state.ships.length > 2 ? 14 + state.ships.length * 3 : 0 };
+  const nextShipCost = shipCost(state);
   const nextMothershipCost = mothershipCost(state);
   return `<h3>Actions</h3>
     <div class="card">Ships: ${state.ships.length}
-      <button data-action="buyShip" ${canAfford(state, shipCost) ? "" : "disabled"}>Buy Ship (${fmtCost(shipCost)})</button>
+      <button data-action="buyShip" ${canAfford(state, nextShipCost) ? "" : "disabled"}>Buy Ship (${fmtCost(nextShipCost)})</button>
     </div>
     <div class="card">Motherships: ${state.mothership.count}
       <button data-action="buyMothership" ${canAfford(state, nextMothershipCost) ? "" : "disabled"}>Buy Mothership (${fmtCost(nextMothershipCost)})</button>
@@ -120,8 +120,8 @@ function renderTech(state) {
 function renderDetails(state) {
   if (state.selected.kind === "planet") {
     const p = state.planets.find(x => x.id === state.selected.id);
-    const cost = { ore: 25 * p.extractorLevel, bio: 10 * p.extractorLevel, silicon: Math.max(0, 8 * (p.extractorLevel - 1)) };
-    const colonyCost = { ore: 80 + p.distance * 0.12, water: 35, energy: 40, bio: 30 };
+    const cost = extractorCost(p.extractorLevel);
+    const nextColonyCost = colonyCost(p);
     return `<h3>${p.name}</h3>
       <div class="card">Type: ${p.type}<br/>Richness: x${p.richness}<br/>Distance: ${p.distance}
       <div class="meta">Resource Mix: ${p.resourceProfile.map(x => `${RESOURCES[x.id].name} ${(x.share * 100).toFixed(0)}%`).join(", ")}</div>
@@ -129,7 +129,7 @@ function renderDetails(state) {
       <div class="meta">Buffer: ${p.resourceProfile.map(x => `${RESOURCES[x.id].name} ${(p.buffer[x.id] || 0).toFixed(1)}`).join(", ")}</div>
       <button data-action="extractor:${p.id}" ${canAfford(state, cost) ? "" : "disabled"}>Upgrade Extractor (${fmtCost(cost)})</button></div>
       <div class="card"><strong>Colony</strong><br/>${p.colony.established ? `Population: ${Math.floor(p.colony.population)}` : "No colony established"}
-        ${p.colony.established ? renderIndustryButtons(state, p) : `<button data-action="colony:${p.id}" ${canAfford(state, colonyCost) ? "" : "disabled"}>Establish Colony (${fmtCost(colonyCost)})</button>`}
+        ${p.colony.established ? renderIndustryButtons(state, p) : `<button data-action="colony:${p.id}" ${canAfford(state, nextColonyCost) ? "" : "disabled"}>Establish Colony (${fmtCost(nextColonyCost)})</button>`}
       </div>`;
   }
   if (state.selected.kind === "ship") {

@@ -25,7 +25,7 @@ function industryMultiplier(p, state) {
 function producePlanets(state, dt) {
   for (const p of state.planets) {
     if (!p.unlocked) continue;
-    const base = 0.9 * p.richness * p.extractorLevel * p.extractorSlots * state.modifiers.extractorOutput;
+    const base = 1.15 * p.richness * p.extractorLevel * p.extractorSlots * state.modifiers.extractorOutput;
     const colonyBoost = industryMultiplier(p, state);
     for (const item of p.resourceProfile) {
       let produced = base * item.share * colonyBoost;
@@ -113,13 +113,21 @@ export function payCost(state, cost) {
 }
 
 export function buyShip(state) {
-  const cost = { ore: 60 + state.ships.length * 35, energy: 20 + state.ships.length * 12, alloy: state.ships.length > 2 ? 14 + state.ships.length * 3 : 0 };
+  const cost = shipCost(state);
   if (!payCost(state, cost)) return false;
   const ship = makeShip(state.nextShipId++);
   const unlocked = state.planets.filter(p => p.unlocked);
   ship.planetId = unlocked[state.ships.length % unlocked.length].id;
   state.ships.push(ship);
   return true;
+}
+
+export function shipCost(state) {
+  return {
+    ore: 45 + state.ships.length * 28,
+    energy: 18 + state.ships.length * 10,
+    alloy: state.ships.length > 3 ? 12 + state.ships.length * 3 : 0,
+  };
 }
 
 export function mothershipCost(state) {
@@ -153,11 +161,20 @@ export function unlockPlanet(state, planetId) {
 export function establishColony(state, planetId) {
   const p = state.planets.find(x => x.id === planetId);
   if (!p || !p.unlocked || p.colony.established) return false;
-  const cost = { ore: 80 + p.distance * 0.12, water: 35, energy: 40, bio: 30 };
+  const cost = colonyCost(p);
   if (!payCost(state, cost)) return false;
   p.colony.established = true;
   p.colony.population = 120;
   return true;
+}
+
+export function colonyCost(planet) {
+  return {
+    ore: 65 + planet.distance * 0.1,
+    water: 30,
+    energy: 34,
+    bio: 24,
+  };
 }
 
 export function upgradeIndustry(state, planetId, industryId) {
@@ -176,10 +193,18 @@ export function upgradeIndustry(state, planetId, industryId) {
 export function upgradeExtractor(state, planetId) {
   const p = state.planets.find(x => x.id === planetId);
   if (!p) return false;
-  const cost = { ore: 25 * p.extractorLevel, bio: 10 * p.extractorLevel, silicon: Math.max(0, 8 * (p.extractorLevel - 1)) };
+  const cost = extractorCost(p.extractorLevel);
   if (!payCost(state, cost)) return false;
   p.extractorLevel += 1;
   return true;
+}
+
+export function extractorCost(level) {
+  return {
+    ore: 20 * level,
+    bio: 8 * level,
+    silicon: Math.max(0, 6 * (level - 1)),
+  };
 }
 
 export function buyUpgrade(state, upgradeId) {

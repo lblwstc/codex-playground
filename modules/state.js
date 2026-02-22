@@ -14,16 +14,31 @@ function resourcesUnlockedByPlanet(index) {
 function unlockCostForPlanet(index) {
   if (index === 0) return resourceMap(0);
   const known = resourcesUnlockedByPlanet(index - 1);
-  const base = 60 + index * 28;
+  const base = 36 + index * 20;
   const cost = resourceMap(0);
   known.forEach((id, i) => {
-    const rarity = 1 + i * 0.42;
-    cost[id] = Math.floor((base * rarity) / Math.max(1.15, known.length * 0.45));
+    const rarity = 1 + i * 0.3;
+    cost[id] = Math.floor((base * rarity) / Math.max(1.35, known.length * 0.6));
   });
+
+  if (index <= 3) {
+    cost.ore = Math.floor(cost.ore * 0.7);
+    cost.energy = Math.floor(cost.energy * 0.8);
+  }
+
   return cost;
 }
 
 function makeResourceProfile(template, index) {
+  if (index === 0) {
+    return [
+      { id: "ore", share: 0.45 },
+      { id: "energy", share: 0.25 },
+      { id: "water", share: 0.2 },
+      { id: "bio", share: 0.1 },
+    ];
+  }
+
   const unlocked = resourcesUnlockedByPlanet(index);
   const weighted = [];
   template.affinities.forEach((id, i) => {
@@ -32,9 +47,11 @@ function makeResourceProfile(template, index) {
   if (!weighted.length) weighted.push({ id: unlocked[0], weight: 1 });
 
   const extras = unlocked.filter(id => !weighted.some(w => w.id === id));
-  if (extras.length && index > 0) {
-    const seed = (index * 7) % extras.length;
-    weighted.push({ id: extras[seed], weight: 0.22 + (index % 3) * 0.05 });
+  const desiredChannels = index <= 3 ? 3 : 2;
+  while (extras.length && weighted.length < desiredChannels) {
+    const seed = (index * 7 + weighted.length) % extras.length;
+    const [picked] = extras.splice(seed, 1);
+    weighted.push({ id: picked, weight: 0.24 + (index % 3) * 0.05 });
   }
 
   const total = weighted.reduce((sum, x) => sum + x.weight, 0);
@@ -68,7 +85,7 @@ export function createInitialState() {
     version: 3,
     time: now,
     lastSaveAt: now,
-    resources: { ...resourceMap(0), ore: 110, water: 40, bio: 30, energy: 30 },
+    resources: { ...resourceMap(0), ore: 120, water: 60, bio: 45, energy: 55 },
     rates: resourceMap(0),
     storageCap: resourceMap(650),
     mothership: { x: 0, y: 0, count: 1, tier: 1 },
@@ -117,7 +134,7 @@ export function makeShip(idx) {
     progress: 0,
     dockTimer: 0,
     cargo: resourceMap(0),
-    capacity: 20,
-    speed: 80,
+    capacity: 24,
+    speed: 90,
   };
 }
