@@ -32,8 +32,10 @@ export function applyOfflineProgress(state) {
     const dt = remaining * 0.1;
     for (const p of state.planets) {
       if (!p.unlocked) continue;
-      const output = 0.9 * p.richness * p.extractorLevel * p.extractorSlots * state.modifiers.extractorOutput * dt;
-      p.buffer[p.primaryResource] += output;
+      const base = 0.9 * p.richness * p.extractorLevel * p.extractorSlots * state.modifiers.extractorOutput * dt;
+      for (const item of (p.resourceProfile || [])) {
+        p.buffer[item.id] += base * item.share;
+      }
     }
   }
 }
