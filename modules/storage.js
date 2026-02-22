@@ -23,6 +23,19 @@ export function resetSave() {
 export function applyOfflineProgress(state) {
   const elapsedMs = Date.now() - (state.lastSaveAt || Date.now());
   const capped = Math.min(elapsedMs, 8 * 3600_000);
-  const ticks = Math.floor(capped / 100);
-  for (let i = 0; i < ticks; i++) tick(state);
+  const totalTicks = Math.floor(capped / 100);
+  const SIM_LIMIT = 3000;
+  const ticksToRun = Math.min(totalTicks, SIM_LIMIT);
+  for (let i = 0; i < ticksToRun; i++) tick(state);
+  const remaining = totalTicks - ticksToRun;
+  if (remaining > 0) {
+    const dt = remaining * 0.1;
+    for (const p of state.planets) {
+      if (!p.unlocked) continue;
+      const base = 0.9 * p.richness * p.extractorLevel * p.extractorSlots * state.modifiers.extractorOutput * dt;
+      for (const item of (p.resourceProfile || [])) {
+        p.buffer[item.id] += base * item.share;
+      }
+    }
+  }
 }
