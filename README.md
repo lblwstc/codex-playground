@@ -12,6 +12,12 @@ A no-build 2D planet resource-gathering game built with Canvas 2D and ES modules
 - Expand to new planets to unlock new resource types, establish colonies, and develop industries.
 - Colony industries generate Science, which unlocks advanced technologies.
 
+## Balance notes (current)
+- Starter planet now outputs a guaranteed mixed profile (Ore/Energy/Water/Bio), so the early game can fund ship growth and first expansion without soft-locking.
+- Early planet unlock costs are reduced and weighted toward accessible resources.
+- Early economy tuning: higher base extraction, slightly better starting stockpile, and stronger starter ships.
+- Cost formulas for ships/extractors/colonies are centralized in simulation logic to keep UI prices and gameplay prices consistent.
+
 ## Controls
 - **Desktop**: drag to pan, mouse wheel to zoom, click ships/planets to inspect.
 - **Mobile**: drag to pan, pinch to zoom, tap to select; bottom tabs switch Actions/Details/Tech.
